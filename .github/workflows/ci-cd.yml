@@ -1,0 +1,36 @@
+name: CI/CD Donantes Node.js
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+
+    steps:
+    - name: 1. Descargar código fuente
+      uses: actions/checkout@v4
+
+    - name: 2. Configurar Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+
+    - name: 3. Instalar dependencias
+      run: npm install
+
+    - name: 4. Ejecutar pruebas unitarias con Jest y cobertura
+      run: npm test -- --ci --coverage
+
+    - name: 5. Simular despliegue a entorno de prueba
+      run: |
+        echo "¡Pruebas exitosas superadas con Jest!"
+        echo "Desplegando automáticamente al entorno de prueba..."
