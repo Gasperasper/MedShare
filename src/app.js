@@ -1,42 +1,71 @@
 const express = require('express');
+const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
+
 const app = express();
-
-// Middleware para leer JSON en las peticiones
 app.use(express.json());
-
-// Servir automáticamente la carpeta public para la interfaz visual
 app.use(express.static(path.join(__dirname, '../public')));
 
-// Endpoint para registrar insumos médicos (Simulación optimizada para la presentación)
-app.post('/api/insumos', (req, res) => {
-    const { nombreInsumo, categoria, cantidad, fechaCaducidad } = req.body;
-
-    // Validación de negocio de campos obligatorios
-    if (!nombreInsumo || !categoria || !cantidad || !fechaCaducidad) {
-        return res.status(400).json({ mensaje: 'Faltan datos obligatorios del insumo médico' });
+// Configuración de la base de datos SQLite (en memoria para tests, archivo local para producción)
+const dbFile = process.env.NODE_ENV === 'test' ? ':memory:' : './database.sqlite';
+const db = new sqlite3.Database(dbFile, (err) => {
+    if (err) {
+        console.error('Error al conectar con la base de datos:', err.message);
+    } else {
+        console.log('Conectado a la base de datos SQLite.');
     }
+});
 
-    // Respuesta de éxito (Código 201: Creado)
-    return res.status(201).json({
-        mensaje: 'Insumo médico registrado con éxito en MedShare',
-        registradoPor: 'administrador',
-        insumo: {
-            nombreInsumo,
-            categoria,
-            cantidad,
-            fechaCaducidad
+// Crear la tabla de insumos si no existe (adaptada a los nombres del test)
+db.run(`CREATE TABLE IF NOT EXISTS insumos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nombreInsumo TEXT NOT NULL,
+    cantidad INTEGER NOT NULL,
+    categoria TEXT NOT NULL
+)`);
+
+// Endpoint GET: Obtener todos los insumos
+app.get('/api/insumos', (req, res) => {
+    db.all(`SELECT * FROM insumos`, [], (err, rows) => {
+        if (err) {
+            return res.status(500).json({ error: err.message });
         }
+        res.json(rows);
     });
 });
 
-// Exportamos app para las pruebas con Supertest (si usas un archivo server.js separado para arrancar)
-module.exports = app;
+// Endpoint POST: Registrar un nuevo insumo (coincidiendo con las expectativas del test)
+app.post('/api/insumos', (req, res) => {
+    const { nombreInsumo, cantidad, categoria } = req.body;
 
-// Si ejecutas directamente este archivo, arranca el servidor en el puerto 3000
-if (require.main === module) {
-    const PORT = 3000;
+    // Validación básica que espera el test
+    if (!nombreInsumo || cantidad === undefined || !categoria) {
+        return res.status(400).json({ mensaje: 'Faltan datos obligatorios del insumo médico' });
+    }
+
+    const query = `INSERT INTO insumos (nombreInsumo, cantidad, categoria) VALUES (?, ?, ?)`;
+    db.run(query, [nombreInsumo, cantidad, categoria], function(err) {
+        if (err) {
+            return res.status(500).json({ error: err.message });
+        }
+        res.status(201).json({
+            mensaje: 'Insumo médico registrado con éxito en MedShare',
+            insumo: {
+                id: this.lastID,
+                nombreInsumo,
+                cantidad,
+                categoria
+            }
+        });
+    });
+});
+
+// Exportar app para Jest (importante para que las pruebas no levanten el puerto duplicado)
+if (process.env.NODE_ENV !== 'test') {
+    const PORT = process.env.PORT || 3000;
     app.listen(PORT, () => {
-        console.log(`Servidor de MedShare corriendo en http://localhost:${PORT}`);
+        console.log(`Servidor corriendo en http://localhost:${PORT}`);
     });
 }
+
+module.exports = app;
