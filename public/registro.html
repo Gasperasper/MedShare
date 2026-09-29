@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MedShare - Crear cuenta</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body data-modo="registro">
+<main class="container narrow">
+    <h1>MedShare</h1>
+    <p class="subtitle">Plataforma de gestión e intercambio de insumos médicos</p>
+    <h2>Crear cuenta</h2>
+    <form id="authForm" novalidate>
+        <div class="form-group"><label for="nombre">Nombre completo</label><input type="text" id="nombre" autocomplete="name" required></div>
+        <div class="form-group"><label for="email">Correo electrónico</label><input type="email" id="email" autocomplete="email" required></div>
+        <div class="form-group"><label for="password">Contraseña</label><input type="password" id="password" autocomplete="new-password" required></div>
+        <button type="submit" class="btn">Crear cuenta</button>
+    </form>
+    <div id="authMsg" class="msg" role="alert"></div>
+    <p class="auth-link">¿Ya tienes cuenta? <a href="login.html">Iniciar sesión</a></p>
+</main>
+<script src="js/api.js"></script>
+<script src="js/auth.js"></script>
+</body>
+</html>

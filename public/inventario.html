@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MedShare - Inventario</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="topbar">
+    <strong>MedShare</strong>
+    <nav>
+        <a class="navbtn active" href="inventario.html">Inventario</a>
+        <a class="navbtn" href="registrar.html">Registrar insumo</a>
+    </nav>
+    <div class="user"><span id="userInfo"></span> <button type="button" class="btn-link" id="logoutBtn">Cerrar sesión</button></div>
+</header>
+<main class="container">
+    <h2>Inventario</h2>
+    <div class="filtros">
+        <input type="search" id="fBuscar" placeholder="Buscar por nombre" aria-label="Buscar por nombre">
+        <select id="fCategoria" aria-label="Filtrar por categoría">
+            <option value="">Todas las categorías</option>
+            <option>Medicamentos</option><option>Equipo médico</option><option>Material de curación</option>
+        </select>
+        <label class="check"><input type="checkbox" id="fPorVencer"> Vencen en 30 días o menos</label>
+        <label class="check"><input type="checkbox" id="fOcultarVencidos" checked> Ocultar vencidos</label>
+    </div>
+    <div class="tabla-wrap">
+        <table>
+            <thead><tr><th>Insumo</th><th>Categoría</th><th>Cantidad</th><th>Caducidad</th><th>Estado</th><th></th></tr></thead>
+            <tbody id="tbody"></tbody>
+        </table>
+    </div>
+    <p id="vacio" class="vacio" hidden>No hay insumos con estos filtros. Registra uno en "Registrar insumo".</p>
+</main>
+<script src="js/api.js"></script>
+<script src="js/inventario.js"></script>
+</body>
+</html>

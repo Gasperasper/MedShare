@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MedShare - Registrar insumo</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="topbar">
+    <strong>MedShare</strong>
+    <nav>
+        <a class="navbtn" href="inventario.html">Inventario</a>
+        <a class="navbtn active" href="registrar.html">Registrar insumo</a>
+    </nav>
+    <div class="user"><span id="userInfo"></span> <button type="button" class="btn-link" id="logoutBtn">Cerrar sesión</button></div>
+</header>
+<main class="container">
+    <h2>Registrar insumo</h2>
+    <form id="insumoForm" class="narrow-form">
+        <div class="form-group"><label for="nombreInsumo">Nombre del insumo</label>
+            <input type="text" id="nombreInsumo" placeholder="Ej. Paracetamol 500mg o Silla de ruedas" required></div>
+        <div class="form-group"><label for="categoria">Categoría</label>
+            <select id="categoria" required>
+                <option value="">Selecciona una categoría</option>
+                <option value="Medicamentos">Medicamentos</option>
+                <option value="Equipo médico">Equipo médico</option>
+                <option value="Material de curación">Material de curación</option>
+            </select></div>
+        <div class="form-group"><label for="cantidad">Cantidad</label>
+            <input type="number" id="cantidad" min="1" placeholder="Ej. 10" required></div>
+        <div class="form-group"><label for="fechaCaducidad">Fecha de caducidad</label>
+            <input type="date" id="fechaCaducidad" required></div>
+        <button type="submit" class="btn">Registrar insumo</button>
+    </form>
+    <div id="resultado" class="msg" role="status"></div>
+</main>
+<script src="js/api.js"></script>
+<script src="js/registrar.js"></script>
+</body>
+</html>

@@ -1,37 +1,77 @@
 const request = require('supertest');
 const app = require('../src/app');
 
-describe('Módulo de Registro de Insumos Médicos - MedShare', () => {
-    
-    test('1. Debe fallar (400) si faltan datos obligatorios del insumo', async () => {
-        const res = await request(app)
-            .post('/api/insumos')
-            .send({ nombreInsumo: '', cantidad: 10, categoria: '' });
-        
-        expect(res.statusCode).toBe(400);
-        expect(res.body.mensaje).toBe('Faltan datos obligatorios del insumo médico');
-    });
+const fecha = (dias) => new Date(Date.now() + dias * 864e5).toISOString().slice(0, 10);
+const cred = { email: 'user@test.com', password: 'secreto1' };
+let tUser, tAdmin;
 
-    test('2. Debe registrar exitosamente (201) un insumo médico con datos correctos', async () => {
-        const res = await request(app)
-            .post('/api/insumos')
-            .send({ 
-                nombreInsumo: 'Paracetamol 500mg', 
-                cantidad: 50, 
-                categoria: 'Analgésicos' 
-            });
-        
+beforeAll(async () => {
+    await request(app).post('/api/auth/register').send({ nombre: 'Usuario', ...cred });
+    await request(app).post('/api/auth/register').send({ nombre: 'Admin', email: 'admin@test.com', password: 'secreto1' });
+    await new Promise((ok) => app.db.run("UPDATE users SET rol='admin' WHERE email='admin@test.com'", ok));
+    tUser = (await request(app).post('/api/auth/login').send(cred)).body.token;
+    tAdmin = (await request(app).post('/api/auth/login').send({ email: 'admin@test.com', password: 'secreto1' })).body.token;
+});
+
+const post = (body, t = tUser) => request(app).post('/api/insumos').set('Authorization', 'Bearer ' + t).send(body);
+const base = { nombreInsumo: 'Paracetamol 500mg', categoria: 'Medicamentos', cantidad: 10, fechaCaducidad: fecha(60) };
+
+describe('Autenticación', () => {
+    test('registro inválido responde 400', async () => {
+        expect((await request(app).post('/api/auth/register').send({ email: 'x@x.com' })).statusCode).toBe(400);
+    });
+    test('correo repetido responde 409', async () => {
+        expect((await request(app).post('/api/auth/register').send({ nombre: 'Otro', ...cred })).statusCode).toBe(409);
+    });
+    test('contraseña incorrecta responde 401', async () => {
+        expect((await request(app).post('/api/auth/login').send({ ...cred, password: 'mala' })).statusCode).toBe(401);
+    });
+    test('login correcto devuelve token y rol', async () => {
+        const res = await request(app).post('/api/auth/login').send(cred);
+        expect(res.body.token).toBeDefined();
+        expect(res.body.user.rol).toBe('usuario');
+    });
+    test('sin token o con token falso responde 401', async () => {
+        expect((await request(app).get('/api/insumos')).statusCode).toBe(401);
+        expect((await post(base, 'falso')).statusCode).toBe(401);
+    });
+});
+
+describe('Insumos', () => {
+    test('faltan datos → 400', async () => {
+        expect((await post({ ...base, nombreInsumo: '' })).statusCode).toBe(400);
+    });
+    test('cantidad inválida → 400', async () => {
+        expect((await post({ ...base, cantidad: 0 })).statusCode).toBe(400);
+    });
+    test('fecha vencida → 400', async () => {
+        expect((await post({ ...base, fechaCaducidad: fecha(-1) })).statusCode).toBe(400);
+    });
+    test('registro correcto → 201', async () => {
+        const res = await post(base);
         expect(res.statusCode).toBe(201);
-        expect(res.body.mensaje).toBe('Insumo médico registrado con éxito en MedShare');
         expect(res.body.insumo.nombreInsumo).toBe('Paracetamol 500mg');
     });
-
-    test('3. Debe listar los insumos médicos registrados (200)', async () => {
-        const res = await request(app).get('/api/insumos');
-        
+    test('insumo repetido suma la cantidad (200) sin duplicar', async () => {
+        const res = await post({ ...base, nombreInsumo: 'paracetamol 500MG', cantidad: 5 });
         expect(res.statusCode).toBe(200);
-        expect(Array.isArray(res.body)).toBe(true);
-        expect(res.body.length.lengthGreaterThanOrEqual ? res.body.length >= 0 : true).toBe(true);
+        expect(res.body.insumo.cantidad).toBe(15);
+        const lista = await request(app).get('/api/insumos').set('Authorization', 'Bearer ' + tUser);
+        expect(lista.body.filter((i) => i.nombreInsumo.toLowerCase().startsWith('paracetamol'))).toHaveLength(1);
     });
+    test('otra fecha de caducidad crea un registro aparte', async () => {
+        expect((await post({ ...base, fechaCaducidad: fecha(90) })).statusCode).toBe(201);
+    });
+});
 
+describe('Roles (baja de insumos)', () => {
+    test('usuario normal → 403', async () => {
+        const res = await request(app).delete('/api/insumos/1').set('Authorization', 'Bearer ' + tUser);
+        expect(res.statusCode).toBe(403);
+    });
+    test('admin da de baja → 200 y luego 404', async () => {
+        const del = () => request(app).delete('/api/insumos/1').set('Authorization', 'Bearer ' + tAdmin);
+        expect((await del()).statusCode).toBe(200);
+        expect((await del()).statusCode).toBe(404);
+    });
 });
