@@ -1,0 +1,1 @@
+location.replace(localStorage.getItem('medshare_token') ? 'inventario.html' : 'login.html');

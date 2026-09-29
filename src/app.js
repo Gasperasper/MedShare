@@ -3,9 +3,20 @@ const sqlite3 = require('sqlite3').verbose();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const path = require('path');
+const helmet = require('helmet');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'medshare-dev-secret'; // en producción define JWT_SECRET
 const app = express();
+
+app.use(helmet({
+    contentSecurityPolicy: {
+        directives: {
+            ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+            'upgrade-insecure-requests': null // evita problemas al probar en http://localhost
+        }
+    }
+}));
+
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '../public')));
 
@@ -78,13 +89,15 @@ app.post('/api/auth/login', h(async (req, res) => {
 app.get('/api/insumos', auth, h(async (req, res) => res.json(await all('SELECT * FROM insumos'))));
 
 app.post('/api/insumos', auth, h(async (req, res) => {
-    const { nombreInsumo, categoria, cantidad, fechaCaducidad } = req.body;
-    if (!nombreInsumo || !nombreInsumo.trim() || !categoria || !fechaCaducidad || cantidad === undefined)
+    const { nombreInsumo, categoria, cantidad } = req.body;
+    const fechaCaducidad = req.body.fechaCaducidad || '';   // '' = sin caducidad
+    const sinCaducidad = categoria === 'Equipo médico';
+    if (!nombreInsumo || !nombreInsumo.trim() || !categoria || cantidad === undefined || (!sinCaducidad && !fechaCaducidad))
         return res.status(400).json({ error: 'Faltan datos obligatorios del insumo médico' });
     const cant = Number(cantidad);
     if (!Number.isInteger(cant) || cant < 1)
         return res.status(400).json({ error: 'La cantidad debe ser un número entero mayor a 0' });
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(fechaCaducidad) || fechaCaducidad < new Date().toISOString().slice(0, 10))
+    if (fechaCaducidad && (!/^\d{4}-\d{2}-\d{2}$/.test(fechaCaducidad) || fechaCaducidad < new Date().toISOString().slice(0, 10)))
         return res.status(400).json({ error: 'La fecha de caducidad es inválida o ya pasó' });
 
     const nombre = nombreInsumo.trim();
@@ -111,6 +124,15 @@ app.delete('/api/insumos/:id', auth, soloAdmin, h(async (req, res) => {
     const r = await run('DELETE FROM insumos WHERE id = ?', [req.params.id]);
     if (!r.changes) return res.status(404).json({ error: 'Insumo no encontrado' });
     res.json({ mensaje: 'Insumo dado de baja' });
+}));
+
+app.patch('/api/insumos/:id/cantidad', auth, soloAdmin, h(async (req, res) => {
+    const { cantidad } = req.body;
+    if (!Number.isInteger(cantidad) || cantidad < 0)
+        return res.status(400).json({ error: 'La cantidad debe ser un número entero de 0 o más' });
+    const r = await run('UPDATE insumos SET cantidad = ? WHERE id = ?', [cantidad, req.params.id]);
+    if (!r.changes) return res.status(404).json({ error: 'Insumo no encontrado' });
+    res.json({ mensaje: 'Cantidad actualizada', cantidad });
 }));
 
 app.db = db; // para que las pruebas puedan promover un usuario a admin

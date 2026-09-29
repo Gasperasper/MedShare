@@ -75,3 +75,35 @@ describe('Roles (baja de insumos)', () => {
         expect((await del()).statusCode).toBe(404);
     });
 });
+
+describe('Equipo sin caducidad y edición de cantidad', () => {
+    const silla = { nombreInsumo: 'Silla de ruedas', categoria: 'Equipo médico', cantidad: 2 };
+    const conToken = (t) => ({ Authorization: 'Bearer ' + t });
+
+    test('equipo médico se registra sin fecha (201) y se suma si se repite', async () => {
+        expect((await post(silla)).statusCode).toBe(201);
+        const res = await post(silla);
+        expect(res.statusCode).toBe(200);
+        expect(res.body.insumo.cantidad).toBe(4);
+    });
+    test('equipo médico con fecha vencida sigue dando 400', async () => {
+        expect((await post({ ...silla, fechaCaducidad: fecha(-1) })).statusCode).toBe(400);
+    });
+    test('usuario normal no puede editar cantidad (403)', async () => {
+        const res = await request(app).patch('/api/insumos/2/cantidad').set(conToken(tUser)).send({ cantidad: 1 });
+        expect(res.statusCode).toBe(403);
+    });
+    test('admin edita la cantidad (200)', async () => {
+        const lista = await request(app).get('/api/insumos').set(conToken(tAdmin));
+        const id = lista.body.find((i) => i.nombreInsumo === 'Silla de ruedas').id;
+        const res = await request(app).patch(`/api/insumos/${id}/cantidad`).set(conToken(tAdmin)).send({ cantidad: 1 });
+        expect(res.statusCode).toBe(200);
+        expect(res.body.cantidad).toBe(1);
+    });
+    test('cantidad inválida → 400 e insumo inexistente → 404', async () => {
+        const patch = (id, cantidad) => request(app).patch(`/api/insumos/${id}/cantidad`).set(conToken(tAdmin)).send({ cantidad });
+        expect((await patch(2, -3)).statusCode).toBe(400);
+        expect((await patch(2, 'abc')).statusCode).toBe(400);
+        expect((await patch(9999, 5)).statusCode).toBe(404);
+    });
+});
