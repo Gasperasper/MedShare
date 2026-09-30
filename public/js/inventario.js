@@ -1,5 +1,6 @@
 let insumos = [];
-if (iniciarPagina()) cargar();
+if (iniciarPagina()) void cargar();
+//if (iniciarPagina()) cargar();
 const fechaDe = (i) => (i.fechaCaducidad || '').slice(0, 10);
 
 function diasParaVencer(fecha) {
@@ -29,14 +30,15 @@ function boton(texto, clase, fn) {
     return b;
 }
 
-// Cambia la celda de cantidad por un campo editable (solo admin)
 function editarCantidad(insumo, td) {
     const input = document.createElement('input');
     input.type = 'number'; input.min = 0; input.value = insumo.cantidad; input.className = 'cant-input';
     const guardar = boton('Guardar', '', async () => {
         if (input.value === '') return alert('Escribe una cantidad.');
         const r = await api(`/api/insumos/${insumo.id}/cantidad`, { method: 'PATCH', body: JSON.stringify({ cantidad: Number(input.value) }) });
-        r.ok ? cargar() : alert(r.data.error || 'No se pudo actualizar la cantidad.');
+        //r.ok ? cargar() : alert(r.data.error || 'No se pudo actualizar la cantidad.');
+        if (r.ok) await cargar();
+        else alert(r.data.error || 'No se pudo actualizar la cantidad.');
     });
     td.replaceChildren(input, guardar, boton('Cancelar', '', pintar));
     input.focus();
@@ -68,7 +70,9 @@ function pintar() {
             acc.appendChild(boton('Dar de baja', 'danger', async () => {
                 if (!confirm(`¿Dar de baja "${i.nombreInsumo}"?`)) return;
                 const r = await api('/api/insumos/' + i.id, { method: 'DELETE' });
-                r.ok ? cargar() : alert(r.data.error || 'No se pudo dar de baja.');
+                //r.ok ? cargar() : alert(r.data.error || 'No se pudo dar de baja.');
+                if (r.ok) await cargar();
+                else alert(r.data.error || 'No se pudo dar de baja.');
             }));
         }
         $('tbody').appendChild(tr);
